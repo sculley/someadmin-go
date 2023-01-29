@@ -2,42 +2,46 @@ package config
 
 import (
 	"fmt"
-	"strings"
+	"log"
+
+	"github.com/fsnotify/fsnotify"
+	"github.com/spf13/viper"
 )
 
-// Loader is the interface that all config managers should follow.
-type Loader interface {
-	LoadConfig(out interface{}) error
+// FileConfig receives the config file path, name, and type
+type FileConfig struct {
+	Path string
+	Name string
+	Type string
 }
 
-// LoadWLFromString is used to convert a comma separated list of strings into a list of strings
-func LoadWLFromString(wl string) []string {
-	if wl == "" {
-		return []string{}
+func (c FileConfig) Load(conf interface{}) {
+	// Set the file name of the configurations file
+	viper.SetConfigName(c.Name)
+	// Set the type of the configuration file
+	viper.SetConfigType(c.Type)
+	// Add the path to look for the configurations file
+	viper.AddConfigPath(c.Path)
+
+	log.Println("Reading config file")
+
+	if err := viper.ReadInConfig(); err != nil {
+		log.Fatalf("Error reading config file, %s", err)
 	}
 
-	return strings.Split(wl, ",")
+	// Watch for changes
+	viper.WatchConfig()
+	viper.OnConfigChange(func(evt fsnotify.Event) {
+		fmt.Println("Config file changed:", evt.Name)
+		err := viper.Unmarshal(conf)
+		if err != nil {
+			log.Fatalf("Unable to decode into struct, %v", err)
+		}
+	})
+
+	// Unmarshall the config into the provided struct
+	err := viper.Unmarshal(conf)
+	if err != nil {
+		log.Fatalf("Unable to decode into struct, %v", err)
+	}
 }
-
-// ErrConfigNotFound is used when a config manager is unable to locate the config.
-// This should be the case whether it is stored in a file or on a remote service.
-type ErrConfigNotFound struct {
-	File string
-	Err  error
-}
-
-func (e *ErrConfigNotFound) Error() string {
-	return fmt.Sprintf("config not found, %s: %s", e.File, e.Err.Error())
-}
-
-func (e *ErrConfigNotFound) Unwrap() error { return e.Err }
-
-type ErrInvalidConfig struct {
-	Err error
-}
-
-func (e *ErrInvalidConfig) Error() string {
-	return fmt.Sprintf("invalid config: %v", e.Err.Error())
-}
-
-func (e *ErrInvalidConfig) Unwrap() error { return e.Err }

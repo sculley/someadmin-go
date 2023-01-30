@@ -2,9 +2,9 @@ package config
 
 import (
 	"fmt"
-	"log"
 
 	"github.com/fsnotify/fsnotify"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 )
 
@@ -23,10 +23,10 @@ func (c FileConfig) Load(conf interface{}) {
 	// Add the path to look for the configurations file
 	viper.AddConfigPath(c.Path)
 
-	log.Println("Reading config file")
+	log.Debug("Reading config file")
 
 	if err := viper.ReadInConfig(); err != nil {
-		log.Fatalf("Error reading config file, %s", err)
+		log.Error("Error reading config file, %s", err)
 	}
 
 	// Watch for changes
@@ -35,13 +35,13 @@ func (c FileConfig) Load(conf interface{}) {
 		fmt.Println("Config file changed:", evt.Name)
 		err := viper.Unmarshal(conf)
 		if err != nil {
-			log.Fatalf("Unable to decode into struct, %v", err)
+			log.Error("Unable to decode into struct, %v", err)
 		}
 	})
 
 	// Unmarshall the config into the provided struct
 	err := viper.Unmarshal(conf)
 	if err != nil {
-		log.Fatalf("Unable to decode into struct, %v", err)
+		log.Error("Unable to decode into struct, %v", err)
 	}
 }
